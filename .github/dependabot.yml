@@ -9,6 +9,16 @@ updates:
       dev-dependencies:
         dependency-type: development
         update-types: [minor, patch]
+    ignore:
+      # openapi-typescript 7 supports TypeScript 5 only.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # Node types follow the Node major we target (22).
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      # @apollo/server 5 requires graphql 16.
+      - dependency-name: graphql
+        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:

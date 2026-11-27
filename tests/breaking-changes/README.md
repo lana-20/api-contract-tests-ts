@@ -16,9 +16,10 @@ a type. Additive changes, such as a new optional field, pass.
   must fail with all three findings reported. It checks the findings, not just the
   exit code, because an unreadable spec also exits non-zero.
 
-**Demo:** the open pull request labeled `demo` removes `nextCursor` from the list
-response. Its CI run shows the oasdiff job failing with
-`response-required-property-removed`. It is kept open on purpose and will not be merged.
+**Demo:** the open pull request labeled `demo` lowers the maximum of the `limit` query
+parameter from 100 to 50. Every runtime test still passes (none of them asks for more than
+10), but clients that send `limit=100` would start getting 422s. Only the oasdiff job
+fails, with `request-parameter-max-decreased`. It is kept open on purpose and will not be merged.
 
 | | |
 |---|---|
