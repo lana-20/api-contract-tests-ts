@@ -40,21 +40,21 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
-    "@graphql-inspector/cli": "7.0.4",
+    "@graphql-inspector/cli": "7.0.8",
     "@pact-foundation/pact": "17.1.4",
     "@types/newman": "5.3.6",
     "@types/node": "22.20.7",
-    "allure-vitest": "3.14.0",
-    "eslint": "10.14.0",
-    "fast-check": "4.10.2",
+    "allure-vitest": "3.15.0",
+    "eslint": "10.15.0",
+    "fast-check": "4.11.0",
     "newman": "6.2.3",
-    "newman-reporter-allure": "3.14.0",
+    "newman-reporter-allure": "3.15.0",
     "newman-reporter-htmlextra": "1.23.1",
     "openapi-typescript": "7.13.0",
     "tsx": "4.23.15",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.73.0",
-    "vitest": "5.1.0"
+    "typescript-eslint": "8.74.0",
+    "vitest": "5.1.1"
   },
   "overrides": {
     "@graphql-tools/utils": "12.1.0"
