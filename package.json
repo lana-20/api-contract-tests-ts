@@ -1,0 +1,62 @@
+{
+  "name": "api-contract-tests-ts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API contract testing in TypeScript: OpenAPI conformance, auth/error matrix, Pact, breaking-change detection and property-based checks.",
+  "license": "MIT",
+  "author": "Lana Begunova (https://github.com/lana-20)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/server.ts",
+    "gen:types": "openapi-typescript openapi/openapi.yaml -o src/generated/openapi.ts",
+    "check:types-drift": "npm run gen:types && git diff --exit-code -- src/generated",
+    "lint": "eslint .",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:schema": "vitest run --project schema-conformance",
+    "test:auth": "vitest run --project auth-matrix",
+    "test:property": "vitest run --project property",
+    "test:pact:consumer": "vitest run --project pact-consumer",
+    "test:pact:provider": "vitest run --project pact-provider",
+    "test:pact": "npm run test:pact:consumer && npm run test:pact:provider",
+    "report": "allure generate allure-results -o allure-report",
+    "test:postman": "tsx postman/run.ts",
+    "postman:sync": "tsx postman/sync.ts",
+    "postman:check": "tsx postman/sync.ts --check",
+    "start:graphql": "tsx graphql/src/server.ts",
+    "test:graphql": "vitest run --project graphql",
+    "graphql:snapshot": "vitest run --project graphql --update"
+  },
+  "dependencies": {
+    "@apollo/server": "5.5.2",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "fastify": "5.12.8",
+    "graphql": "16.15.0",
+    "yaml": "2.9.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@graphql-inspector/cli": "7.0.4",
+    "@pact-foundation/pact": "17.1.4",
+    "@types/newman": "5.3.6",
+    "@types/node": "22.20.7",
+    "allure-vitest": "3.14.0",
+    "eslint": "10.14.0",
+    "fast-check": "4.10.2",
+    "newman": "6.2.3",
+    "newman-reporter-allure": "3.14.0",
+    "newman-reporter-htmlextra": "1.23.1",
+    "openapi-typescript": "7.13.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.73.0",
+    "vitest": "5.1.0"
+  },
+  "overrides": {
+    "@graphql-tools/utils": "12.1.0"
+  }
+}

@@ -1,0 +1,55 @@
+"""A contact owned by the calling user."""
+type Contact {
+  createdAt: String!
+  email: String!
+  id: ID!
+
+  """
+  Needs the messages:read scope. Without it, this field is null and errors[] says why.
+  """
+  messages: [Message!]
+  name: String!
+  phone: String
+  updatedAt: String!
+}
+
+type ContactPage {
+  items: [Contact!]!
+
+  """Pass as after to get the next page. null on the last page."""
+  nextCursor: String
+}
+
+input CreateContactInput {
+  email: String!
+  name: String!
+  phone: String
+}
+
+type Message {
+  body: String!
+  contact: Contact!
+  createdAt: String!
+  id: ID!
+}
+
+type Mutation {
+  """Needs contacts:write."""
+  createContact(input: CreateContactInput!): Contact!
+
+  """Returns false if there was nothing to delete. Needs contacts:write."""
+  deleteContact(id: ID!): Boolean!
+
+  """Needs messages:write."""
+  sendMessage(body: String!, contactId: ID!): Message!
+}
+
+type Query {
+  """
+  One contact, or null if it does not exist (or belongs to someone else). Needs contacts:read.
+  """
+  contact(id: ID!): Contact
+
+  """The caller's contacts, oldest first. Needs contacts:read."""
+  contacts(after: String, first: Int = 20): ContactPage!
+}

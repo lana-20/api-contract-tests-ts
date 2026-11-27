@@ -1,0 +1,37 @@
+[
+  {
+    "case": "no Authorization header",
+    "authorization": "",
+    "expectedStatus": 401,
+    "expectedType": "unauthorized",
+    "challenge": "^Bearer realm=\"contacts\"$"
+  },
+  {
+    "case": "non-Bearer scheme",
+    "authorization": "Basic YWxpY2U6c2VjcmV0",
+    "expectedStatus": 401,
+    "expectedType": "unauthorized",
+    "challenge": "^Bearer realm=\"contacts\"$"
+  },
+  {
+    "case": "unknown token",
+    "authorization": "Bearer not-a-real-token",
+    "expectedStatus": 401,
+    "expectedType": "unauthorized",
+    "challenge": "error=\"invalid_token\""
+  },
+  {
+    "case": "expired token",
+    "authorization": "Bearer alice-expired",
+    "expectedStatus": 401,
+    "expectedType": "unauthorized",
+    "challenge": "error=\"invalid_token\""
+  },
+  {
+    "case": "token without scopes",
+    "authorization": "Bearer alice-no-scopes",
+    "expectedStatus": 403,
+    "expectedType": "forbidden",
+    "challenge": "error=\"insufficient_scope\""
+  }
+]

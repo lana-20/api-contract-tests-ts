@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>API contract tests (TypeScript)</title>
+  <style>
+    :root { --bg: #ffffff; --fg: #1d2430; --muted: #5b6575; --card: #f4f6f9; --link: #0b5cad; --border: #dde2ea; }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #11151c; --fg: #e6e9ef; --muted: #a3acba; --card: #1a2029; --link: #7ab8ff; --border: #2a3240; }
+    }
+    body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+    h1 { font-size: 1.7rem; margin: 0 0 8px; }
+    p.lead { color: var(--muted); margin: 0 0 28px; }
+    a { color: var(--link); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 32px; }
+    .card { display: block; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-decoration: none; color: var(--fg); }
+    .card strong { display: block; color: var(--link); margin-bottom: 4px; }
+    .card span { color: var(--muted); font-size: 0.93rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; }
+    footer { margin-top: 36px; color: var(--muted); font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>API contract tests (TypeScript)</h1>
+  <p class="lead">Test reports for <a href="https://github.com/lana-20/api-contract-tests-ts">lana-20/api-contract-tests-ts</a>:
+    contract testing for a small REST and GraphQL API, with an OpenAPI 3.1 spec as the single source of truth.
+    Published by CI on every push to <code>main</code>.</p>
+
+  <div class="cards">
+    <a class="card" href="allure/"><strong>Allure report</strong><span>Every Vitest layer and the Newman runs, merged into one report.</span></a>
+    <a class="card" href="newman/contacts-api.html"><strong>Newman: main collection</strong><span>Auth, chained CRUD, idempotent messages and error shapes.</span></a>
+    <a class="card" href="newman/auth-matrix.html"><strong>Newman: auth matrix</strong><span>Data-driven run: 6 operations x 5 bad-token cases.</span></a>
+  </div>
+
+  <table>
+    <thead><tr><th>Layer</th><th>What it checks</th></tr></thead>
+    <tbody>
+      <tr><td>Schema conformance</td><td>Every documented response matches the spec: status, headers, content type, body, no undocumented fields.</td></tr>
+      <tr><td>Auth and error matrix</td><td>Every operation x every way a token can be wrong; RFC 9457 error shapes.</td></tr>
+      <tr><td>Pact</td><td>A typed consumer's pact, verified against the real API with provider states.</td></tr>
+      <tr><td>Breaking changes</td><td>oasdiff and GraphQL Inspector diff the contracts against <code>main</code>.</td></tr>
+      <tr><td>Property-based</td><td>fast-check generates valid, invalid and arbitrary payloads.</td></tr>
+      <tr><td>Postman / Newman</td><td>A curated collection with schema checks synced from the spec.</td></tr>
+      <tr><td>GraphQL</td><td>Apollo Server: auth per field, partial data with errors, depth limiting.</td></tr>
+    </tbody>
+  </table>
+
+  <footer>Source and explanations: <a href="https://github.com/lana-20/api-contract-tests-ts">github.com/lana-20/api-contract-tests-ts</a> · Author: <a href="https://github.com/lana-20">Lana Begunova</a></footer>
+</main>
+</body>
+</html>

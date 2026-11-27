@@ -1,0 +1,766 @@
+{
+  "info": {
+    "_postman_id": "0b6c0f55-3c1e-4a8e-9a57-6f4d3c2a7e10",
+    "name": "Contacts API",
+    "description": "Curated contract checks for the Contacts API. Started from the OpenAPI import (openapi-to-postmanv2), then organized by concern and given tests. The `schemas` variable is generated from openapi/openapi.yaml by `npm run postman:sync`; do not edit it by hand.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Default every request to Alice's full-access token. Collection scripts run",
+          "// before request scripts, so a request can override this with its own token.",
+          "// (Set it unconditionally: local variables survive between requests in a run.)",
+          "pm.variables.set('token', pm.environment.get('aliceToken'));"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Checks shared by every response, written once at the collection level.",
+          "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+          "",
+          "if (pm.response.code >= 400) {",
+          "  pm.test('error is an RFC 9457 problem matching the spec', () => {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.match(/^application\\/problem\\+json/);",
+          "    pm.response.to.have.jsonSchema(schemas.Problem);",
+          "    pm.expect(pm.response.json().status, 'body status matches HTTP status').to.eql(pm.response.code);",
+          "  });",
+          "}",
+          "",
+          "pm.test('responds quickly', () => {",
+          "  pm.expect(pm.response.responseTime).to.be.below(1000);",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "schemas",
+      "value": "{\"Contact\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"email\",\"createdAt\",\"updatedAt\"],\"properties\":{\"id\":{\"type\":\"string\",\"pattern\":\"^c_[0-9]+$\",\"examples\":[\"c_1\"]},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":100},\"email\":{\"type\":\"string\",\"format\":\"email\",\"maxLength\":254},\"phone\":{\"description\":\"E.164 phone number.\",\"type\":\"string\",\"pattern\":\"^\\\\+[1-9][0-9]{1,14}$\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"ContactPage\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"items\",\"nextCursor\"],\"properties\":{\"items\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"name\",\"email\",\"createdAt\",\"updatedAt\"],\"properties\":{\"id\":{\"type\":\"string\",\"pattern\":\"^c_[0-9]+$\",\"examples\":[\"c_1\"]},\"name\":{\"type\":\"string\",\"minLength\":1,\"maxLength\":100},\"email\":{\"type\":\"string\",\"format\":\"email\",\"maxLength\":254},\"phone\":{\"description\":\"E.164 phone number.\",\"type\":\"string\",\"pattern\":\"^\\\\+[1-9][0-9]{1,14}$\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"},\"updatedAt\":{\"type\":\"string\",\"format\":\"date-time\"}}}},\"nextCursor\":{\"description\":\"Pass as `cursor` to get the next page. `null` on the last page.\",\"type\":[\"string\",\"null\"]}}},\"Message\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\",\"contactId\",\"body\",\"createdAt\"],\"properties\":{\"id\":{\"type\":\"string\",\"pattern\":\"^m_[0-9]+$\"},\"contactId\":{\"type\":\"string\"},\"body\":{\"type\":\"string\"},\"createdAt\":{\"type\":\"string\",\"format\":\"date-time\"}}},\"Problem\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"type\",\"title\",\"status\"],\"properties\":{\"type\":{\"type\":\"string\",\"enum\":[\"https://contacts.example/problems/bad-request\",\"https://contacts.example/problems/unauthorized\",\"https://contacts.example/problems/forbidden\",\"https://contacts.example/problems/not-found\",\"https://contacts.example/problems/conflict\",\"https://contacts.example/problems/validation-error\",\"https://contacts.example/problems/idempotency-key-reused\",\"https://contacts.example/problems/internal-error\"]},\"title\":{\"type\":\"string\"},\"status\":{\"type\":\"integer\",\"minimum\":400,\"maximum\":599},\"detail\":{\"type\":\"string\"},\"instance\":{\"type\":\"string\"},\"errors\":{\"description\":\"Field-level details for validation errors.\",\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"detail\"],\"properties\":{\"detail\":{\"type\":\"string\"},\"pointer\":{\"description\":\"JSON Pointer into the request body (RFC 6901).\",\"type\":\"string\"},\"parameter\":{\"description\":\"Name of the query or header parameter.\",\"type\":\"string\"}}}}}}}",
+      "description": "Generated by npm run postman:sync"
+    }
+  ],
+  "item": [
+    {
+      "name": "auth",
+      "description": "Missing, expired and under-scoped tokens. The data-driven auth-matrix collection covers every operation; these are the readable examples.",
+      "item": [
+        {
+          "name": "No token -> 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('challenge has no error code (RFC 6750 3.1)', () => {",
+                  "  pm.expect(pm.response.headers.get('WWW-Authenticate')).to.eql('Bearer realm=\"contacts\"');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Expired token -> 401 invalid_token",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('token', pm.environment.get('expiredToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 401', () => pm.response.to.have.status(401));",
+                  "pm.test('challenge says invalid_token', () => {",
+                  "  pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('error=\"invalid_token\"');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Read-only token cannot create -> 403",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.variables.set('token', pm.environment.get('readOnlyToken'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 403', () => pm.response.to.have.status(403));",
+                  "pm.test('challenge names the missing scope', () => {",
+                  "  pm.expect(pm.response.headers.get('WWW-Authenticate')).to.include('scope=\"contacts:write\"');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nope\",\n  \"email\": \"nope@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "contacts",
+      "description": "A chained CRUD flow: create -> read -> update -> delete -> confirm gone, passing the new id along in a collection variable.",
+      "item": [
+        {
+          "name": "List contacts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body matches ContactPage', () => pm.response.to.have.jsonSchema(schemas.ContactPage));",
+                  "pm.test('respects limit and returns a cursor', () => {",
+                  "  const page = pm.response.json();",
+                  "  pm.expect(page.items).to.have.lengthOf(2);",
+                  "  pm.expect(page.nextCursor).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts?limit=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "2"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create contact",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique email per run, so the collection can be re-run against the same server.",
+                  "pm.variables.set('newEmail', `mary.${Date.now()}@example.com`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('body matches Contact', () => pm.response.to.have.jsonSchema(schemas.Contact));",
+                  "pm.test('Location points at the new contact', () => {",
+                  "  pm.expect(pm.response.headers.get('Location')).to.eql(`/contacts/${pm.response.json().id}`);",
+                  "});",
+                  "// Save the id for the next requests in this folder.",
+                  "pm.collectionVariables.set('contactId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Mary Jackson\",\n  \"email\": \"{{newEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get the created contact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body matches Contact', () => pm.response.to.have.jsonSchema(schemas.Contact));",
+                  "pm.test('is the contact we created', () => {",
+                  "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('contactId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update the contact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+                  "pm.test('status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('body matches Contact', () => pm.response.to.have.jsonSchema(schemas.Contact));",
+                  "pm.test('phone was changed', () => pm.expect(pm.response.json().phone).to.eql('+15551234567'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"+15551234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete the contact",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 204 with no body', () => {",
+                  "  pm.response.to.have.status(204);",
+                  "  pm.expect(pm.response.text()).to.eql('');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deleted contact is gone -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));",
+                  "pm.test('problem type is not-found', () => {",
+                  "  pm.expect(pm.response.json().type).to.eql('https://contacts.example/problems/not-found');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/{{contactId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "{{contactId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "messages",
+      "description": "Idempotent sends: the same Idempotency-Key twice must not send twice.",
+      "item": [
+        {
+          "name": "Send a message",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A fresh key per run; the next request reuses it to simulate a client retry.",
+                  "pm.collectionVariables.set('messageKey', pm.variables.replaceIn('{{$guid}}'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const schemas = JSON.parse(pm.collectionVariables.get('schemas'));",
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('body matches Message', () => pm.response.to.have.jsonSchema(schemas.Message));",
+                  "pm.test('not marked as a replay', () => pm.response.to.not.have.header('Idempotent-Replayed'));",
+                  "pm.collectionVariables.set('messageId', pm.response.json().id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{messageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/c_1/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "c_1",
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"See you at 10.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Retry with the same key -> replay",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('marked as a replay', () => pm.response.to.have.header('Idempotent-Replayed', 'true'));",
+                  "pm.test('same message, not a second one', () => {",
+                  "  pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get('messageId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{messageKey}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/c_1/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "c_1",
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"See you at 10.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "errors",
+      "description": "Error codes and shapes (the collection-level test also validates each problem body).",
+      "item": [
+        {
+          "name": "Malformed JSON -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"name\": ",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Missing Idempotency-Key -> 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('names the header', () => {",
+                  "  pm.expect(pm.response.json().errors[0].parameter).to.eql('idempotency-key');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts/c_1/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts",
+                "c_1",
+                "messages"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Hi\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Duplicate email -> 409",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ada again\",\n  \"email\": \"ada@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Invalid fields -> 422 with pointers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 422', () => pm.response.to.have.status(422));",
+                  "pm.test('points at each invalid field', () => {",
+                  "  const pointers = pm.response.json().errors.map((e) => e.pointer);",
+                  "  pm.expect(pointers).to.include.members(['/name', '/email']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/contacts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "contacts"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Unknown route -> 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/does-not-exist",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "does-not-exist"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

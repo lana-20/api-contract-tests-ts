@@ -1,0 +1,449 @@
+openapi: 3.1.0
+info:
+  title: Contacts API
+  version: 1.0.0
+  summary: A small demo API used as the system under test for contract testing.
+  description: |
+    This file is the single source of truth for the API:
+
+    - the Fastify app reads its routes, required scopes and request schemas from it
+    - TypeScript types are generated from it (`npm run gen:types`)
+    - the provider conformance tests validate every response against it
+    - CI diffs it against `main` to block breaking changes
+
+    Errors use RFC 9457 problem details (`application/problem+json`).
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: http://localhost:3000
+
+# Every operation requires a bearer token unless it overrides this.
+security:
+  - bearerAuth: []
+
+tags:
+  - name: contacts
+  - name: messages
+
+paths:
+  /contacts:
+    get:
+      operationId: listContacts
+      summary: List the caller's contacts, oldest first, with cursor pagination.
+      tags: [contacts]
+      # OpenAPI 3.1 lets non-OAuth schemes list "roles"; we use them as token scopes.
+      security:
+        - bearerAuth: ['contacts:read']
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          description: Opaque value copied from `nextCursor` of the previous page.
+          schema:
+            type: string
+            minLength: 1
+      responses:
+        '200':
+          description: One page of contacts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactPage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    post:
+      operationId: createContact
+      summary: Create a contact. Emails are unique per user.
+      tags: [contacts]
+      security:
+        - bearerAuth: ['contacts:write']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactCreate'
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location:
+              required: true
+              description: URL of the new contact.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /contacts/{contactId}:
+    parameters:
+      - $ref: '#/components/parameters/ContactId'
+    get:
+      operationId: getContact
+      summary: Get one contact.
+      tags: [contacts]
+      security:
+        - bearerAuth: ['contacts:read']
+      responses:
+        '200':
+          description: The contact.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      operationId: updateContact
+      summary: Change some fields of a contact.
+      tags: [contacts]
+      security:
+        - bearerAuth: ['contacts:write']
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactUpdate'
+      responses:
+        '200':
+          description: The updated contact.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    delete:
+      operationId: deleteContact
+      summary: Delete a contact.
+      tags: [contacts]
+      security:
+        - bearerAuth: ['contacts:write']
+      responses:
+        '204':
+          description: Deleted. No body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /contacts/{contactId}/messages:
+    parameters:
+      - $ref: '#/components/parameters/ContactId'
+    post:
+      operationId: sendMessage
+      summary: Send a message to a contact. Safe to retry with the same Idempotency-Key.
+      tags: [messages]
+      security:
+        - bearerAuth: ['messages:write']
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          description: |
+            Client-generated unique key (for example a UUID). Retrying with the same key
+            and the same body returns the original response instead of sending twice.
+            See draft-ietf-httpapi-idempotency-key-header.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 255
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageCreate'
+      responses:
+        '201':
+          description: Sent (or replayed from an earlier request with the same key).
+          headers:
+            Idempotent-Replayed:
+              required: false
+              description: Present and `true` when this response is a replay.
+              schema:
+                type: string
+                enum: ['true']
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Opaque bearer token. Scopes used by this API: `contacts:read`,
+        `contacts:write`, `messages:write`.
+
+  parameters:
+    ContactId:
+      name: contactId
+      in: path
+      required: true
+      schema:
+        type: string
+
+  schemas:
+    # additionalProperties: false on response schemas means "the provider must not
+    # return fields we have not documented" (for example a leaked internal field).
+    # Consumers should still be tolerant readers; this strictness is for the provider.
+    Contact:
+      type: object
+      additionalProperties: false
+      required: [id, name, email, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          pattern: '^c_[0-9]+$'
+          examples: ['c_1']
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          description: E.164 phone number.
+          type: string
+          pattern: '^\+[1-9][0-9]{1,14}$'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ContactCreate:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name:
+          $ref: '#/components/schemas/Contact/properties/name'
+        email:
+          $ref: '#/components/schemas/Contact/properties/email'
+        phone:
+          $ref: '#/components/schemas/Contact/properties/phone'
+
+    ContactUpdate:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          $ref: '#/components/schemas/Contact/properties/name'
+        email:
+          $ref: '#/components/schemas/Contact/properties/email'
+        phone:
+          $ref: '#/components/schemas/Contact/properties/phone'
+
+    ContactPage:
+      type: object
+      additionalProperties: false
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        nextCursor:
+          description: Pass as `cursor` to get the next page. `null` on the last page.
+          type: ['string', 'null']
+
+    MessageCreate:
+      type: object
+      additionalProperties: false
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    Message:
+      type: object
+      additionalProperties: false
+      required: [id, contactId, body, createdAt]
+      properties:
+        id:
+          type: string
+          pattern: '^m_[0-9]+$'
+        contactId:
+          type: string
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    # RFC 9457 problem details. `type` is a closed list so consumers can switch on it.
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          enum:
+            - https://contacts.example/problems/bad-request
+            - https://contacts.example/problems/unauthorized
+            - https://contacts.example/problems/forbidden
+            - https://contacts.example/problems/not-found
+            - https://contacts.example/problems/conflict
+            - https://contacts.example/problems/validation-error
+            - https://contacts.example/problems/idempotency-key-reused
+            - https://contacts.example/problems/internal-error
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+        errors:
+          description: Field-level details for validation errors.
+          type: array
+          items:
+            $ref: '#/components/schemas/FieldError'
+
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [detail]
+      properties:
+        detail:
+          type: string
+        pointer:
+          description: JSON Pointer into the request body (RFC 6901).
+          type: string
+        parameter:
+          description: Name of the query or header parameter.
+          type: string
+
+  responses:
+    BadRequest:
+      description: The request could not be read (malformed JSON or a missing required header).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: Missing, unknown or expired bearer token.
+      headers:
+        WWW-Authenticate:
+          required: true
+          description: RFC 6750 challenge, for example `Bearer error="invalid_token"`.
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: The token is valid but lacks the required scope.
+      headers:
+        WWW-Authenticate:
+          required: true
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: No such resource for this caller.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: The request conflicts with current state (for example a duplicate email).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    ValidationError:
+      description: The request was readable but its content is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    InternalError:
+      description: Unexpected server error. Never includes internal details.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

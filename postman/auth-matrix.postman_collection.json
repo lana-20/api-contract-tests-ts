@@ -1,0 +1,223 @@
+{
+  "info": {
+    "_postman_id": "9f3a1d2c-5e6b-4a7c-8d9e-0f1a2b3c4d5e",
+    "name": "Contacts API auth matrix (data-driven)",
+    "description": "Run with newman --iteration-data postman/auth-matrix.data.json. Each iteration is one way a token can be wrong; every request (one per operation) runs once per iteration. This is the Postman counterpart of test.each in tests/auth-matrix.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// The Authorization header comes from the current data row. An empty value",
+          "// means \"send no header at all\".",
+          "const authorization = pm.iterationData.get('authorization');",
+          "if (authorization) {",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: authorization });",
+          "}"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const row = pm.iterationData.toObject();",
+          "const label = `${row.case}: ${pm.info.requestName}`;",
+          "",
+          "pm.test(`${label} -> ${row.expectedStatus}`, () => {",
+          "  pm.expect(pm.response.code).to.eql(Number(row.expectedStatus));",
+          "});",
+          "pm.test(`${label} -> problem type ${row.expectedType}`, () => {",
+          "  pm.expect(pm.response.json().type).to.eql(`https://contacts.example/problems/${row.expectedType}`);",
+          "});",
+          "pm.test(`${label} -> WWW-Authenticate ${row.challenge}`, () => {",
+          "  pm.expect(pm.response.headers.get('WWW-Authenticate')).to.match(new RegExp(row.challenge));",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    }
+  ],
+  "item": [
+    {
+      "name": "listContacts",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/contacts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "createContact",
+      "event": [],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/contacts",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"M\", \"email\": \"m@example.com\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "getContact",
+      "event": [],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/contacts/c_1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts",
+            "c_1"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "updateContact",
+      "event": [],
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/contacts/c_1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts",
+            "c_1"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\": \"A\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "deleteContact",
+      "event": [],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/contacts/c_1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts",
+            "c_1"
+          ]
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
+      "name": "sendMessage",
+      "event": [],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{$guid}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/contacts/c_1/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "contacts",
+            "c_1",
+            "messages"
+          ]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\"body\": \"Hi\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}

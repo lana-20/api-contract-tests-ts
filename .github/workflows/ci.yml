@@ -1,0 +1,216 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22
+  # Used by the oasdiff job; also referenced in tests/breaking-changes/check.sh.
+  OASDIFF_IMAGE: tufin/oasdiff:v1.38.0
+
+jobs:
+  static:
+    name: Lint, typecheck and drift checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      # Regenerate types from the spec; fail if the committed ones differ.
+      - run: npm run check:types-drift
+      # Fail if the Postman collection's schemas or requests lag behind the spec.
+      - run: npm run postman:check
+
+  layer:
+    name: ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [schema-conformance, auth-matrix, property, graphql]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npx vitest run --project ${{ matrix.project }}
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: allure-results-${{ matrix.project }}
+          path: allure-results
+          retention-days: 7
+
+  pact-consumer:
+    name: Pact consumer (writes the pact)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npm run test:pact:consumer
+      # Stand-in for a Pact Broker: hand the pact file to the provider job.
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pacts
+          path: pacts
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: allure-results-pact-consumer
+          path: allure-results
+          retention-days: 7
+
+  pact-provider:
+    name: Pact provider verification
+    needs: pact-consumer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - uses: actions/download-artifact@v8
+        with:
+          name: pacts
+          path: pacts
+      - run: npm run test:pact:provider
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: allure-results-pact-provider
+          path: allure-results
+          retention-days: 7
+
+  breaking-changes:
+    name: OpenAPI breaking-change check (oasdiff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # we need the base branch's copy of the spec
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: docker pull "$OASDIFF_IMAGE"
+      # First prove the gate can fail: a deliberately broken spec must be rejected.
+      - name: Self-test the gate
+        run: tests/breaking-changes/self-test.sh
+      - name: Compare the spec with the base branch
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_ref="origin/${{ github.base_ref }}"
+          else
+            base_ref="${{ github.event.before }}"
+          fi
+          mkdir -p .oasdiff-tmp
+          if ! git show "$base_ref:openapi/openapi.yaml" > .oasdiff-tmp/base.yaml 2>/dev/null; then
+            echo "No base spec at $base_ref (first commit?); nothing to compare."
+            exit 0
+          fi
+          tests/breaking-changes/check.sh .oasdiff-tmp/base.yaml openapi/openapi.yaml
+
+  graphql-breaking-changes:
+    name: GraphQL breaking-change check (GraphQL Inspector)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - name: Self-test the gate
+        run: graphql/breaking-self-test.sh
+      - name: Compare the schema with the base branch
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_ref="origin/${{ github.base_ref }}"
+          else
+            base_ref="${{ github.event.before }}"
+          fi
+          mkdir -p .inspector-tmp
+          if ! git show "$base_ref:graphql/schema.graphql" > .inspector-tmp/base.graphql 2>/dev/null; then
+            echo "No base schema at $base_ref (first commit?); nothing to compare."
+            exit 0
+          fi
+          graphql/check-breaking.sh .inspector-tmp/base.graphql graphql/schema.graphql
+
+  postman:
+    name: Postman collections (Newman)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}', cache: npm }
+      - run: npm ci
+      - run: npm run test:postman
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: newman-html
+          path: reports/newman
+          retention-days: 7
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: allure-results-postman
+          path: allure-results
+          retention-days: 7
+
+  report:
+    name: Build the report site
+    needs: [layer, pact-consumer, pact-provider, postman]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: '${{ env.NODE_VERSION }}' }
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: allure-results-*
+          path: allure-results
+          merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          name: newman-html
+          path: _site/newman
+        continue-on-error: true
+      - name: Generate the Allure report
+        run: npx --yes allure@3.33.0 generate allure-results --output _site/allure
+      - name: Add the landing page
+        run: cp site/index.html _site/index.html
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: report
+    if: always() && needs.report.result == 'success' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
