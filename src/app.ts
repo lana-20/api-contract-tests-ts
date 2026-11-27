@@ -58,7 +58,8 @@ export function buildApp(options: AppOptions = {}): FastifyInstance {
     if (error instanceof ApiProblem) {
       problem = error;
     } else if (isClientError(error)) {
-      // Errors Fastify raises before our handler runs, e.g. malformed JSON.
+      // Errors Fastify raises before our handler runs, such as malformed JSON or an
+      // empty JSON body. The spec's only "could not read the request" status is 400.
       problem = problems.badRequest(error.message);
     } else {
       // Log the real error, but never send internals (stack, SQL, ...) to the client.
