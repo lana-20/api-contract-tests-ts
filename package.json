@@ -43,7 +43,7 @@
     "@graphql-inspector/cli": "7.0.4",
     "@pact-foundation/pact": "17.1.4",
     "@types/newman": "5.3.6",
-    "@types/node": "22.20.7",
+    "@types/node": "26.6.6",
     "allure-vitest": "3.14.0",
     "eslint": "10.14.0",
     "fast-check": "4.10.2",
